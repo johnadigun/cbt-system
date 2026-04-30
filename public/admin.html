@@ -1,0 +1,83 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>Admin Panel</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="box">
+
+<h2>Admin Panel</h2>
+
+<h3>Add Question</h3>
+
+<input id="question" placeholder="Question"><br><br>
+<input id="opt1" placeholder="Option 1"><br><br>
+<input id="opt2" placeholder="Option 2"><br><br>
+<input id="opt3" placeholder="Option 3"><br><br>
+<input id="opt4" placeholder="Option 4"><br><br>
+<input id="answer" placeholder="Correct Answer"><br><br>
+<input id="subject" placeholder="Subject"><br><br>
+
+<button onclick="add()">Add Question</button>
+
+<hr>
+
+<h3>All Questions</h3>
+<div id="list"></div>
+
+</div>
+
+<script>
+
+// ===== LOAD QUESTIONS =====
+function load(){
+fetch("/admin/questions")
+.then(r=>r.json())
+.then(d=>{
+let html="";
+d.forEach(q=>{
+html+=`
+<div>
+<p>${q.question}</p>
+<button onclick="del('${q._id}')">Delete</button>
+<hr>
+</div>`;
+});
+document.getElementById("list").innerHTML = html;
+});
+}
+
+// ===== ADD =====
+function add(){
+fetch("/admin/add-question",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+question:question.value,
+options:[opt1.value,opt2.value,opt3.value,opt4.value],
+answer:answer.value,
+subject:subject.value
+})
+})
+.then(()=>load());
+}
+
+// ===== DELETE =====
+function del(id){
+fetch("/admin/delete-question",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id})
+})
+.then(()=>load());
+}
+
+// INIT
+load();
+
+</script>
+
+</body>
+</html>

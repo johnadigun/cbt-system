@@ -1,0 +1,65 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="box">
+
+<h2>Dashboard</h2>
+
+<label>Select Subject</label>
+<br><br>
+
+<select id="subject">
+<option value="Mathematics">Mathematics</option>
+<option value="English">English</option>
+<option value="Biology">Biology</option>
+<option value="General">General</option>
+</select>
+
+<br><br>
+
+<button onclick="startCBT()">Start CBT</button>
+<br><br>
+
+<button onclick="practice()">Practice Mode</button>
+
+</div>
+
+<script>
+
+// ===== ENSURE EMAIL EXISTS (CORRECTED) =====
+let email = localStorage.getItem("userEmail");
+
+if(!email){
+alert("Please login first");
+window.location="login.html";
+}
+
+// ===== PRESERVE SUBJECT SELECTION (CORRECTED) =====
+if(localStorage.getItem("subject")){
+document.getElementById("subject").value = localStorage.getItem("subject");
+}
+
+// ===== START CBT =====
+function startCBT(){
+const subject = document.getElementById("subject").value;
+
+// ===== STORE SUBJECT CORRECTLY =====
+localStorage.setItem("subject", subject);
+
+window.location="cbt.html";
+}
+
+// ===== PRACTICE =====
+function practice(){
+window.location="practice.html";
+}
+
+</script>
+
+</body>
+</html>

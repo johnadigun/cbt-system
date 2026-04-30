@@ -1,0 +1,48 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>Forgot Password</title>
+<style>
+body{background:linear-gradient(to right,#0f2027,#203a43,#2c5364);display:flex;justify-content:center;align-items:center;height:100vh;font-family:Arial}
+.box{background:#fff;padding:30px;border-radius:10px;width:320px;text-align:center}
+input,button{width:100%;padding:10px;margin:8px 0;border-radius:5px;border:1px solid #ccc}
+button{background:#2c5364;color:#fff;border:none}
+</style>
+</head>
+<body>
+
+<div class="box">
+<h2>Reset Password</h2>
+
+<input id="email" placeholder="Enter your email">
+<input id="newpass" type="password" placeholder="New Password">
+
+<button onclick="reset()">Reset Password</button>
+
+<p><a href="login.html">Back to Login</a></p>
+</div>
+
+<script>
+function reset(){
+fetch("/reset-password",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+email:email.value,
+password:newpass.value
+})
+})
+.then(r=>r.json())
+.then(d=>{
+if(d.success){
+alert("Password updated");
+window.location="login.html";
+}else{
+alert("Error");
+}
+});
+}
+</script>
+
+</body>
+</html>

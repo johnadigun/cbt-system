@@ -1,0 +1,23 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Payment Success</title>
+</head>
+<body>
+
+<h2>Payment Successful ✔</h2>
+<p>You can now access CBT Mode</p>
+
+<button onclick="continueExam()">Enter CBT</button>
+
+<script>
+// 🔥 GRANT ACCESS
+localStorage.setItem("paid", "true");
+
+function continueExam() {
+    window.location.href = "cbt.html";
+}
+</script>
+
+</body>
+</html>

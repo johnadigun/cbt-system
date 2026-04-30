@@ -1,0 +1,58 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>Result</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="box">
+
+<h2>Exam Result</h2>
+
+<p id="score"></p>
+<p id="percentage"></p>
+<p id="status"></p>
+
+<br>
+
+<button onclick="printResult()">Print Result</button>
+<button onclick="goDashboard()">Back to Dashboard</button>
+
+</div>
+
+<script>
+
+// ===== LOAD RESULT (CORRECTED) =====
+let score = localStorage.getItem("score");
+let total = localStorage.getItem("total");
+let percent = localStorage.getItem("percent");
+
+// ===== SAFETY CHECK =====
+if(!score || !total || !percent){
+alert("No result found");
+window.location = "dashboard.html";
+}
+
+// ===== DISPLAY RESULT =====
+document.getElementById("score").innerText = "Score: " + score + " / " + total;
+document.getElementById("percentage").innerText = "Percentage: " + percent + "%";
+
+// ===== STATUS CALCULATION =====
+let status = percent >= 50 ? "Passed" : "Failed";
+document.getElementById("status").innerText = "Status: " + status;
+
+// ===== PRINT =====
+function printResult(){
+window.print();
+}
+
+// ===== NAVIGATION =====
+function goDashboard(){
+window.location = "dashboard.html";
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,54 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>Login</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="box">
+
+<h2>Login</h2>
+
+<input id="email" placeholder="Email"><br><br>
+<input id="password" type="password" placeholder="Password"><br><br>
+
+<button onclick="login()">Login</button>
+
+<p><a href="register.html">Create Account</a></p>
+
+</div>
+
+<script>
+
+function login() {
+
+    fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            email: email.value,
+            password: password.value
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+
+            // ===== CORRECTED STORAGE =====
+            localStorage.setItem("userEmail", data.email);
+            localStorage.setItem("paid", data.paid);
+
+            alert("Login successful");
+            window.location.href = "dashboard.html";
+
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+</script>
+
+</body>
+</html>

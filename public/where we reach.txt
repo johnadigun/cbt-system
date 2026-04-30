@@ -1,0 +1,11 @@
+?? SIMPLE MEMORY TIP
+
+When you return, remember:
+
+?? Server works
+?? MongoDB works
+?? CBT works
+
+So we won’t touch setup again—only improve features.
+
+You’ve done the hardest part already.

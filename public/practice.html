@@ -1,0 +1,95 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>Practice</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="box">
+
+<h2>Practice Mode (20 Questions)</h2>
+
+<p id="question"></p>
+<div id="options"></div>
+
+<br>
+
+<button onclick="next()">Next</button>
+
+<p id="progress"></p>
+
+</div>
+
+<script>
+
+let questions = [];
+let index = 0;
+let answers = [];
+
+// ===== LOAD QUESTIONS (CORRECTED) =====
+fetch("/questions")
+.then(r=>r.json())
+.then(d=>{
+questions = d.slice(0,20); // take first 20
+answers = new Array(questions.length).fill(null);
+load();
+});
+
+// ===== LOAD =====
+function load(){
+let q = questions[index];
+
+document.getElementById("question").innerText = q.question;
+
+let html = "";
+q.options.forEach(o=>{
+let checked = answers[index]===o ? "checked" : "";
+html += `<label><input type="radio" name="o" value="${o}" ${checked}> ${o}</label>`;
+});
+
+document.getElementById("options").innerHTML = html;
+
+document.getElementById("progress").innerText = (index+1)+" / "+questions.length;
+}
+
+// ===== SAVE =====
+function save(){
+let s = document.querySelector('input[name="o"]:checked');
+if(s){
+answers[index] = s.value;
+}
+}
+
+// ===== NEXT =====
+function next(){
+save();
+
+if(index < questions.length-1){
+index++;
+load();
+}else{
+finish();
+}
+}
+
+// ===== FINISH =====
+function finish(){
+let score = 0;
+
+for(let i=0;i<questions.length;i++){
+if(answers[i]===questions[i].answer) score++;
+}
+
+let total = questions.length;
+let percent = Math.round(score/total*100);
+
+alert("Score: "+score+"/"+total+" ("+percent+"%)");
+
+window.location = "dashboard.html";
+}
+
+</script>
+
+</body>
+</html>

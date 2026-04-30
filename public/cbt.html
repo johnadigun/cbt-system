@@ -1,0 +1,257 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>CBT</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="main">
+
+<div class="box">
+<h2>CBT Exam</h2>
+<p id="timer"></p>
+<p id="question"></p>
+<div id="options"></div>
+
+<button onclick="next()">Next</button>
+<button onclick="flag()">Flag</button>
+<button onclick="submitExam()">Submit</button>
+
+<p id="progress"></p>
+</div>
+
+<div class="palette" id="palette"></div>
+
+</div>
+
+<script>
+let email = localStorage.getItem("userEmail");
+let subject = localStorage.getItem("subject");
+
+// ===== SESSION LOCK (CORRECTED) =====
+if(localStorage.getItem("examActive") === "true"){
+alert("Exam already in progress");
+}
+
+localStorage.setItem("examActive","true");
+
+let questions = [], index = 0, timer;
+let answers = [], flags = [];
+
+const timerEl = document.getElementById("timer");
+const questionEl = document.getElementById("question");
+const optionsEl = document.getElementById("options");
+const progressEl = document.getElementById("progress");
+const paletteEl = document.getElementById("palette");
+
+// ===== LOCK REFRESH =====
+window.onbeforeunload = function(){
+    return "Exam in progress";
+};
+
+// ===== BLOCK BACK =====
+history.pushState(null,null,location.href);
+window.onpopstate = function(){history.go(1);};
+
+// ===== TAB SWITCH WARNING =====
+document.addEventListener("visibilitychange", function(){
+    if(document.hidden){
+        alert("Do not switch tabs during exam");
+    }
+});
+
+// ===== CHECK RESULT =====
+fetch("/check-result",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({email})
+})
+.then(r=>r.json())
+.then(d=>{
+if(d.taken){
+alert("Already taken");
+localStorage.removeItem("examActive");
+window.location="result.html";
+}else start();
+});
+
+// ===== START =====
+function start(){
+let t = 1800;
+
+// ===== TIMER RESUME FIX =====
+if(localStorage.getItem("timeLeft")){
+t = parseInt(localStorage.getItem("timeLeft"));
+}
+
+timer=setInterval(()=>{
+let m=Math.floor(t/60),s=t%60;
+timerEl.innerText="Time: "+m+":"+(s<10?"0":"")+s;
+
+// ===== SAVE TIME =====
+localStorage.setItem("timeLeft", t);
+
+if(t<=0){
+clearInterval(timer);
+finish();
+}
+t--;
+},1000);
+
+// ===== RANDOM QUESTIONS =====
+fetch("/questions?subject=" + subject)
+.then(r=>r.json())
+.then(d=>{
+questions=d;
+
+// ===== RESTORE ANSWERS =====
+if(localStorage.getItem("answers")){
+answers = JSON.parse(localStorage.getItem("answers"));
+}else{
+answers=new Array(d.length).fill(null);
+}
+
+if(localStorage.getItem("flags")){
+flags = JSON.parse(localStorage.getItem("flags"));
+}else{
+flags=new Array(d.length).fill(false);
+}
+
+if(localStorage.getItem("index")){
+index = parseInt(localStorage.getItem("index"));
+}
+
+buildPalette();
+load();
+});
+}
+
+// ===== PALETTE =====
+function buildPalette(){
+let html="";
+for(let i=0;i<questions.length;i++){
+html+=`<button id="p${i}" onclick="goTo(${i})">${i+1}</button>`;
+}
+paletteEl.innerHTML=html;
+}
+
+// ===== LOAD =====
+function load(){
+let q=questions[index];
+questionEl.innerText=q.question;
+
+optionsEl.innerHTML="";
+q.options.forEach(o=>{
+let checked=answers[index]===o?"checked":"";
+optionsEl.innerHTML+=`<label><input type="radio" name="o" value="${o}" ${checked}> ${o}</label>`;
+});
+
+progressEl.innerText=(index+1)+" / "+questions.length;
+
+updatePalette();
+
+// ===== SAVE INDEX =====
+localStorage.setItem("index", index);
+}
+
+// ===== SAVE =====
+function save(){
+let s=document.querySelector('input[name="o"]:checked');
+if(s){
+answers[index]=s.value;
+
+// ===== SAVE LOCAL =====
+localStorage.setItem("answers", JSON.stringify(answers));
+
+fetch("/save-answer",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({email,question:index,answer:s.value})
+});
+}
+}
+
+// ===== NEXT =====
+function next(){
+save();
+if(index<questions.length-1){
+index++;
+load();
+}else finish();
+}
+
+// ===== FLAG =====
+function flag(){
+flags[index]=!flags[index];
+
+// ===== SAVE FLAGS =====
+localStorage.setItem("flags", JSON.stringify(flags));
+
+updatePalette();
+}
+
+// ===== GO TO =====
+function goTo(i){
+save();
+index=i;
+load();
+}
+
+// ===== UPDATE PALETTE =====
+function updatePalette(){
+for(let i=0;i<questions.length;i++){
+let b=document.getElementById("p"+i);
+if(!b) continue;
+
+b.className="";
+
+if(i===index) b.classList.add("active");
+if(answers[i]!==null) b.classList.add("answered");
+if(flags[i]) b.classList.add("flagged");
+}
+}
+
+// ===== SUBMIT =====
+function submitExam(){
+if(confirm("Submit exam?")){
+finish();
+}
+}
+
+// ===== FINISH =====
+function finish(){
+clearInterval(timer);
+
+let score=0;
+
+for(let i=0;i<questions.length;i++){
+if(answers[i]===questions[i].answer) score++;
+}
+
+let total=questions.length;
+let percent=Math.round(score/total*100);
+
+// ===== CLEAR SESSION =====
+localStorage.removeItem("examActive");
+localStorage.removeItem("answers");
+localStorage.removeItem("flags");
+localStorage.removeItem("index");
+localStorage.removeItem("timeLeft");
+
+fetch("/save-result",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({email,score,total,percent})
+});
+
+localStorage.setItem("score",score);
+localStorage.setItem("total",total);
+localStorage.setItem("percent",percent);
+
+window.location="result.html";
+}
+</script>
+
+</body>
+</html>
