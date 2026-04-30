@@ -1,4 +1,0 @@
-﻿mongodb+srv://adigunjohn_db_user:<password>@cluster0.4bhtxhh.mongodb.net/?appName=Cluster0
-
-
-mongodb+srv://adigunjohn_db_user:<db_password>@cluster0.4bhtxhh.mongodb.net/?appName=Cluster0
