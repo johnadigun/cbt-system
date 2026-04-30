@@ -20,7 +20,7 @@ app.get("/", (req, res) => {
 // ================= MONGODB =================
 console.log("Trying to connect to MongoDB...");
 
-mongoose.connect(process.env.MONGO_URI || "mongodb+srv://adigunjohn_db_user:Olayinka212405@cluster0.4bhtxhh.mongodb.net/cbt?retryWrites=true&w=majority", {
+mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
@@ -62,27 +62,33 @@ const Answer = mongoose.model("Answer", new mongoose.Schema({
     updated:{type:Date,default:Date.now}
 }));
 
-// ================= REGISTER =================
+// ================= REGISTER (UPGRADED ERROR HANDLING) =================
 app.post("/register", async (req,res)=>{
     try{
         await new User(req.body).save();
         res.json({success:true});
-    }catch{
+    }catch(err){
+        console.log("REGISTER ERROR:", err.message);
         res.json({success:false});
     }
 });
 
-// ================= LOGIN =================
+// ================= LOGIN (UPGRADED ERROR HANDLING) =================
 app.post("/login", async (req,res)=>{
-    const {email,password}=req.body;
+    try{
+        const {email,password}=req.body;
 
-    const user = await User.findOne({email});
+        const user = await User.findOne({email});
 
-    if(!user || user.password !== password){
-        return res.json({success:false,message:"Invalid login"});
+        if(!user || user.password !== password){
+            return res.json({success:false,message:"Invalid login"});
+        }
+
+        res.json({success:true,email:user.email,paid:user.paid});
+    }catch(err){
+        console.log("LOGIN ERROR:", err.message);
+        res.json({success:false});
     }
-
-    res.json({success:true,email:user.email,paid:user.paid});
 });
 
 // ================= ADMIN =================
@@ -90,7 +96,8 @@ app.post("/admin/add-question", async (req,res)=>{
     try{
         await new Question(req.body).save();
         res.json({success:true});
-    }catch{
+    }catch(err){
+        console.log("ADD QUESTION ERROR:", err.message);
         res.json({success:false});
     }
 });
@@ -98,7 +105,8 @@ app.post("/admin/add-question", async (req,res)=>{
 app.get("/admin/questions", async (req,res)=>{
     try{
         res.json(await Question.find());
-    }catch{
+    }catch(err){
+        console.log("FETCH QUESTION ERROR:", err.message);
         res.json([]);
     }
 });
@@ -107,7 +115,8 @@ app.post("/admin/delete-question", async (req,res)=>{
     try{
         await Question.deleteOne({_id:req.body.id});
         res.json({success:true});
-    }catch{
+    }catch(err){
+        console.log("DELETE QUESTION ERROR:", err.message);
         res.json({success:false});
     }
 });
@@ -131,7 +140,8 @@ app.get("/questions", async (req,res)=>{
         }
 
         res.json(q);
-    }catch{
+    }catch(err){
+        console.log("QUESTION FETCH ERROR:", err.message);
         res.json([]);
     }
 });
@@ -147,7 +157,8 @@ app.post("/save-answer", async (req,res)=>{
             {upsert:true}
         );
         res.json({success:true});
-    }catch{
+    }catch(err){
+        console.log("SAVE ANSWER ERROR:", err.message);
         res.json({success:false});
     }
 });
@@ -158,15 +169,21 @@ app.post("/save-result", async (req,res)=>{
         await new Result(req.body).save();
         await Answer.deleteMany({email:req.body.email});
         res.json({success:true});
-    }catch{
+    }catch(err){
+        console.log("SAVE RESULT ERROR:", err.message);
         res.json({success:false});
     }
 });
 
 // ================= CHECK RESULT =================
 app.post("/check-result", async (req,res)=>{
-    const r = await Result.findOne({email:req.body.email});
-    res.json({taken:!!r});
+    try{
+        const r = await Result.findOne({email:req.body.email});
+        res.json({taken:!!r});
+    }catch(err){
+        console.log("CHECK RESULT ERROR:", err.message);
+        res.json({taken:false});
+    }
 });
 
 // ================= START =================
