@@ -13,17 +13,23 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ================= SAFE START (CRITICAL FIX) =================
+// ================= SAFETY CHECK =================
 if (!process.env.MONGO_URI) {
     console.log("❌ MONGO_URI is missing in environment variables");
 }
 
-// ================= DB CONNECTION (STABLE FOR RENDER) =================
+// ================= DATABASE CONNECTION =================
 mongoose.connect(process.env.MONGO_URI, {
     serverSelectionTimeoutMS: 15000
 })
 .then(() => {
     console.log("MongoDB Connected Successfully");
+
+    // ================= START SERVER ONLY AFTER DB CONNECT =================
+    app.listen(PORT, () => {
+        console.log("CBT Commercial System running on port " + PORT);
+    });
+
 })
 .catch(err => {
     console.log("MongoDB Connection Error:", err.message);
@@ -190,9 +196,4 @@ app.get("/admin", async (req, res) => {
         console.log("ADMIN ERROR:", err.message);
         res.json({ error: "Server error" });
     }
-});
-
-// ================= SERVER (RENDER SAFE) =================
-app.listen(PORT, () => {
-    console.log("CBT Commercial System running on port " + PORT);
 });
