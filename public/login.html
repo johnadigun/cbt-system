@@ -23,28 +23,49 @@
 
 function login() {
 
+    // 🔥 SAFE INPUT FETCH
+    var emailInput = document.getElementById("email").value;
+    var passwordInput = document.getElementById("password").value;
+
+    if (!emailInput || !passwordInput) {
+        alert("Enter email and password");
+        return;
+    }
+
     fetch("/login", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
-            email: email.value,
-            password: password.value
+            email: emailInput,
+            password: passwordInput
         })
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+
+        console.log("LOGIN RESPONSE:", data);
+
         if (data.success) {
 
-            // ===== CORRECTED STORAGE =====
+            // 🔥 CLEAR OLD DATA
+            localStorage.clear();
+
+            // 🔥 STORE CLEAN VALUES
             localStorage.setItem("userEmail", data.email);
-            localStorage.setItem("paid", data.paid);
+            localStorage.setItem("paid", String(data.paid));
 
             alert("Login successful");
-            window.location.href = "dashboard.html";
+
+            // 🔥 USE ABSOLUTE PATH
+            window.location.href = "/dashboard.html";
 
         } else {
-            alert(data.message);
+            alert(data.message || "Login failed");
         }
+    })
+    .catch(function(err){
+        console.log("LOGIN ERROR:", err);
+        alert("Cannot connect to server");
     });
 }
 

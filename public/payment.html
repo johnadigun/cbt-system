@@ -1,59 +1,87 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-    <title>Payment</title>
+    <title>CBT Payment</title>
 </head>
 <body>
 
 <h2>CBT Payment</h2>
-<p>Amount: ₦5000</p>
 
-<button onclick="pay()">Pay Now</button>
+<p>Amount: ₦500</p>
+
+<button onclick="pay()">
+    Pay Now
+</button>
+
 <p id="msg"></p>
 
 <script src="https://js.paystack.co/v1/inline.js"></script>
 
 <script>
+
 function pay() {
-    const email = localStorage.getItem("userEmail");
+
+    // ================= USER CHECK =================
+
+    const email =
+        localStorage.getItem("userEmail");
+
+    if (
+        !email ||
+        email === "null" ||
+        email === "undefined"
+    ) {
+
+        alert("Login required");
+
+        window.location.href = "/login.html";
+
+        return;
+    }
+
+    // ================= PAYSTACK =================
 
     let handler = PaystackPop.setup({
-        key: "pk_test_98144baa944e535e4736ee9b97b2e6fbb28bcdcc",
+
+        key:
+        "pk_test_98144baa944e535e4736ee9b97b2e6fbb28bcdcc",
+
         email: email,
-        amount: 500000,
+
+        // 🔥 ₦500 = 50000 kobo
+        amount: 50000,
+
         currency: "NGN",
+
+        // ================= SUCCESS =================
 
         callback: function(response) {
 
-            // 🔥 VERIFY ON SERVER
-            fetch("/verify-payment", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    reference: response.reference,
-                    email: email
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById("msg").innerText = "Payment verified!";
-                    setTimeout(() => {
-                        window.location.href = "dashboard.html";
-                    }, 1000);
-                } else {
-                    document.getElementById("msg").innerText = "Verification failed";
-                }
-            });
+            document.getElementById("msg")
+            .innerText =
+            "Verifying payment...";
+
+            // 🔥 IMPORTANT:
+            // ONLY verification route used
+
+            window.location.href =
+                "/verify?reference=" +
+                response.reference;
         },
 
+        // ================= CANCEL =================
+
         onClose: function() {
-            document.getElementById("msg").innerText = "Payment cancelled";
+
+            document.getElementById("msg")
+            .innerText =
+            "Payment cancelled";
         }
     });
 
     handler.openIframe();
 }
+
 </script>
 
 </body>

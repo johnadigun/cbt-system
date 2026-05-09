@@ -1,192 +1,165 @@
-﻿const express = require("express");
-const bodyParser = require("body-parser");
+﻿require("dotenv").config();
+
+const express = require("express");
 const mongoose = require("mongoose");
+const bodyParser = require("body-parser");
 const path = require("path");
-const https = require("https");
+const crypto = require("crypto");
 
 const app = express();
-
-// ================= PORT (CORRECTED FOR DEPLOY) =================
 const PORT = process.env.PORT || 3000;
 
-app.use(bodyParser.urlencoded({ extended: true }));
+// ================= MIDDLEWARE =================
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "login.html"));
-});
-
-// ================= MONGODB =================
-console.log("Trying to connect to MongoDB...");
-
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-.then(() => console.log("MongoDB Connected"))
-.catch(err => console.log("MongoDB Error:", err.message));
+// ================= DB =================
+mongoose.connect(process.env.MONGO_URI);
 
 // ================= MODELS =================
 const User = mongoose.model("User", new mongoose.Schema({
-    firstname:String,
-    middlename:String,
-    surname:String,
-    phone:String,
-    email:{type:String,unique:true},
-    password:String,
-    paid:{type:Boolean,default:false}
+    email: String,
+    password: String,
+    paid: Boolean,
+    expiresAt: Date,
+    loginToken: String
+}));
+
+const ExamSession = mongoose.model("ExamSession", new mongoose.Schema({
+    email: String,
+    subject: String,
+    sessionId: String,
+    startTime: Date,
+    expiresAt: Date,
+    active: Boolean
 }));
 
 const Result = mongoose.model("Result", new mongoose.Schema({
-    email:String,
-    score:Number,
-    total:Number,
-    percent:Number,
-    date:{type:Date,default:Date.now}
+    email: String,
+    score: Number,
+    total: Number,
+    percent: Number,
+    subject: String,
+    createdAt: { type: Date, default: Date.now }
 }));
 
 const Question = mongoose.model("Question", new mongoose.Schema({
-    question:String,
-    options:[String],
-    answer:String,
-    subject:String,
-    year:String,
-    exam:String
+    question: String,
+    options: [String],
+    answer: String,
+    subject: String
 }));
 
-const Answer = mongoose.model("Answer", new mongoose.Schema({
-    email:String,
-    question:Number,
-    answer:String,
-    updated:{type:Date,default:Date.now}
-}));
+// ================= HELPERS =================
+function generateSessionId() {
+    return crypto.randomBytes(16).toString("hex");
+}
 
-// ================= REGISTER (UPGRADED ERROR HANDLING) =================
-app.post("/register", async (req,res)=>{
-    try{
-        await new User(req.body).save();
-        res.json({success:true});
-    }catch(err){
-        console.log("REGISTER ERROR:", err.message);
-        res.json({success:false});
-    }
-});
+// ================= START EXAM =================
+app.post("/start-exam", async (req, res) => {
 
-// ================= LOGIN (UPGRADED ERROR HANDLING) =================
-app.post("/login", async (req,res)=>{
-    try{
-        const {email,password}=req.body;
+    const { email, subject, loginToken } = req.body;
 
-        const user = await User.findOne({email});
+    const user = await User.findOne({ email });
 
-        if(!user || user.password !== password){
-            return res.json({success:false,message:"Invalid login"});
-        }
+    if (!user || user.loginToken !== loginToken)
+        return res.json({ error: "Invalid session" });
 
-        res.json({success:true,email:user.email,paid:user.paid});
-    }catch(err){
-        console.log("LOGIN ERROR:", err.message);
-        res.json({success:false});
-    }
-});
+    if (!user.paid)
+        return res.json({ error: "Payment required" });
 
-// ================= ADMIN =================
-app.post("/admin/add-question", async (req,res)=>{
-    try{
-        await new Question(req.body).save();
-        res.json({success:true});
-    }catch(err){
-        console.log("ADD QUESTION ERROR:", err.message);
-        res.json({success:false});
-    }
-});
+    if (new Date() > user.expiresAt)
+        return res.json({ error: "Access expired" });
 
-app.get("/admin/questions", async (req,res)=>{
-    try{
-        res.json(await Question.find());
-    }catch(err){
-        console.log("FETCH QUESTION ERROR:", err.message);
-        res.json([]);
-    }
-});
+    // ❌ prevent multiple active exams
+    const existing = await ExamSession.findOne({
+        email,
+        active: true
+    });
 
-app.post("/admin/delete-question", async (req,res)=>{
-    try{
-        await Question.deleteOne({_id:req.body.id});
-        res.json({success:true});
-    }catch(err){
-        console.log("DELETE QUESTION ERROR:", err.message);
-        res.json({success:false});
-    }
+    if (existing)
+        return res.json({ error: "Active exam already running" });
+
+    const sessionId = generateSessionId();
+
+    await ExamSession.create({
+        email,
+        subject,
+        sessionId,
+        startTime: new Date(),
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour exam
+        active: true
+    });
+
+    res.json({ success: true, sessionId });
 });
 
 // ================= QUESTIONS =================
-app.get("/questions", async (req,res)=>{
-    const subject = req.query.subject;
+app.get("/questions", async (req, res) => {
 
-    try{
-        let q;
+    const { email, subject, sessionId } = req.query;
 
-        if(subject && subject !== "null" && subject !== "undefined"){
-            q = await Question.aggregate([
-                { $match: { subject: subject } },
-                { $sample: { size: 50 } }
-            ]);
-        }else{
-            q = await Question.aggregate([
-                { $sample: { size: 50 } }
-            ]);
-        }
+    const session = await ExamSession.findOne({
+        email,
+        sessionId,
+        active: true
+    });
 
-        res.json(q);
-    }catch(err){
-        console.log("QUESTION FETCH ERROR:", err.message);
-        res.json([]);
+    if (!session)
+        return res.json({ error: "Invalid or expired session" });
+
+    if (new Date() > session.expiresAt) {
+        session.active = false;
+        await session.save();
+        return res.json({ error: "Exam time ended" });
     }
+
+    const questions = await Question.aggregate([
+        { $match: { subject } },
+        { $sample: { size: 200 } } // commercial package size
+    ]);
+
+    res.json(questions);
 });
 
-// ================= SAVE ANSWER =================
-app.post("/save-answer", async (req,res)=>{
-    const {email,question,answer} = req.body;
+// ================= SAVE RESULT (STRICT ONE TIME) =================
+app.post("/save-result", async (req, res) => {
 
-    try{
-        await Answer.updateOne(
-            {email,question},
-            {answer,updated:new Date()},
-            {upsert:true}
-        );
-        res.json({success:true});
-    }catch(err){
-        console.log("SAVE ANSWER ERROR:", err.message);
-        res.json({success:false});
-    }
+    const { email, subject } = req.body;
+
+    const existing = await Result.findOne({ email, subject });
+
+    if (existing)
+        return res.json({ error: "Result already submitted" });
+
+    await Result.create(req.body);
+
+    await ExamSession.updateMany(
+        { email, active: true },
+        { active: false }
+    );
+
+    res.json({ success: true });
 });
 
-// ================= SAVE RESULT =================
-app.post("/save-result", async (req,res)=>{
-    try{
-        await new Result(req.body).save();
-        await Answer.deleteMany({email:req.body.email});
-        res.json({success:true});
-    }catch(err){
-        console.log("SAVE RESULT ERROR:", err.message);
-        res.json({success:false});
-    }
+// ================= ADMIN PANEL =================
+app.get("/admin", async (req, res) => {
+
+    const users = await User.find();
+    const sessions = await ExamSession.find({ active: true });
+    const results = await Result.find();
+
+    res.json({
+        totalUsers: users.length,
+        activeExams: sessions.length,
+        totalResults: results.length,
+        users,
+        sessions,
+        results
+    });
 });
 
-// ================= CHECK RESULT =================
-app.post("/check-result", async (req,res)=>{
-    try{
-        const r = await Result.findOne({email:req.body.email});
-        res.json({taken:!!r});
-    }catch(err){
-        console.log("CHECK RESULT ERROR:", err.message);
-        res.json({taken:false});
-    }
-});
-
-// ================= START =================
-app.listen(PORT, ()=>{
-    console.log(`Server running on port ${PORT}`);
+// ================= SERVER =================
+app.listen(PORT, () => {
+    console.log("CBT Commercial System running on port " + PORT);
 });

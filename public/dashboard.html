@@ -1,62 +1,113 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-<title>Dashboard</title>
-<link rel="stylesheet" href="style.css">
+<title>CBT SaaS Dashboard</title>
+
+<style>
+body { margin:0; font-family:Arial; display:flex; }
+
+.sidebar {
+width:220px;
+background:#111;
+color:white;
+height:100vh;
+padding:20px;
+}
+
+.sidebar h2 { color:#fff; }
+
+.sidebar button {
+width:100%;
+padding:10px;
+margin-top:10px;
+cursor:pointer;
+}
+
+.main {
+flex:1;
+padding:20px;
+background:#f4f4f4;
+}
+
+.card {
+background:white;
+padding:20px;
+border-radius:10px;
+margin-bottom:20px;
+}
+</style>
 </head>
+
 <body>
 
-<div class="box">
+<div class="sidebar">
+<h2>CBT SaaS</h2>
 
-<h2>Dashboard</h2>
+<button onclick="show('exam')">Start Exam</button>
+<button onclick="show('result')">Results</button>
+<button onclick="logout()">Logout</button>
+</div>
 
-<label>Select Subject</label>
-<br><br>
+<div class="main">
+
+<div id="exam" class="card">
+<h2>Start CBT Exam</h2>
 
 <select id="subject">
-<option value="Mathematics">Mathematics</option>
-<option value="English">English</option>
-<option value="Biology">Biology</option>
-<option value="General">General</option>
+<option>Select Subject</option>
+<option>Mathematics</option>
+<option>English</option>
+<option>Physics</option>
+<option>Chemistry</option>
+<option>Biology</option>
 </select>
 
 <br><br>
+<button onclick="startExam()">Begin</button>
+</div>
 
-<button onclick="startCBT()">Start CBT</button>
-<br><br>
-
-<button onclick="practice()">Practice Mode</button>
+<div id="result" class="card" style="display:none;">
+<h2>Your Last Result</h2>
+<p id="r"></p>
+</div>
 
 </div>
 
 <script>
 
-// ===== ENSURE EMAIL EXISTS (CORRECTED) =====
-let email = localStorage.getItem("userEmail");
+const email = localStorage.getItem("userEmail");
+const token = localStorage.getItem("loginToken");
 
 if(!email){
-alert("Please login first");
-window.location="login.html";
+alert("Login required");
+window.location="/login.html";
 }
 
-// ===== PRESERVE SUBJECT SELECTION (CORRECTED) =====
-if(localStorage.getItem("subject")){
-document.getElementById("subject").value = localStorage.getItem("subject");
+function show(id){
+document.querySelectorAll(".card").forEach(c=>c.style.display="none");
+document.getElementById(id).style.display="block";
 }
 
-// ===== START CBT =====
-function startCBT(){
+function startExam(){
+
 const subject = document.getElementById("subject").value;
 
-// ===== STORE SUBJECT CORRECTLY =====
-localStorage.setItem("subject", subject);
-
-window.location="cbt.html";
+fetch("/start-exam", {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({email, subject, loginToken:token})
+})
+.then(r=>r.json())
+.then(d=>{
+if(d.error) return alert(d.error);
+localStorage.setItem("subject",subject);
+window.location="/exam.html";
+});
 }
 
-// ===== PRACTICE =====
-function practice(){
-window.location="practice.html";
+function logout(){
+localStorage.clear();
+window.location="/login.html";
 }
 
 </script>
