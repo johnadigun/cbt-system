@@ -1,114 +1,37 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-<title>CBT Exam SaaS</title>
-
-<style>
-body { font-family:Arial; background:#fff; padding:20px; }
-
-.topbar {
-display:flex;
-justify-content:space-between;
-background:#111;
-color:white;
-padding:10px;
-}
-
-.qbox {
-margin-top:20px;
-padding:15px;
-border-bottom:1px solid #ddd;
-}
-
-button {
-padding:10px;
-margin-top:20px;
-}
-</style>
+    <title>CBT Examination</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+<!-- TOP BAR -->
 <div class="topbar">
-<div>CBT Exam System</div>
-<div id="timer"></div>
+    <div class="title">CBT EXAMINATION</div>
+    <div class="timer" id="timer">60:00</div>
 </div>
 
-<div id="box"></div>
+<!-- WARNING -->
+<div id="warning"></div>
 
-<button onclick="submit()">Submit Exam</button>
+<!-- MAIN EXAM AREA -->
+<div class="container">
 
-<script>
+    <div id="questionBox" class="question"></div>
 
-let time=3600;
-let questions=[];
-let answers={};
+    <div id="optionsBox" class="options"></div>
 
-const email=localStorage.getItem("userEmail");
-const token=localStorage.getItem("loginToken");
-const subject=localStorage.getItem("subject");
+    <div class="nav">
+        <button onclick="prev()">Previous</button>
+        <button onclick="next()">Next</button>
+        <button onclick="submitExam()">Submit</button>
+    </div>
 
-if(!email) window.location="/login.html";
+</div>
 
-fetch(`/questions?email=${email}&subject=${subject}&loginToken=${token}`)
-.then(r=>r.json())
-.then(d=>{
-if(d.error) return alert(d.error);
-questions=d;
-render();
-});
-
-function render(){
-let html="";
-
-questions.forEach((q,i)=>{
-html+=`
-<div class="qbox">
-<h4>${i+1}. ${q.question}</h4>
-${q.options.map(o=>`
-<label>
-<input type="radio" name="q${i}" value="${o}" onchange="answers[${i}]='${o}'">
-${o}
-</label><br>
-`).join("")}
-</div>`;
-});
-
-document.getElementById("box").innerHTML=html;
-}
-
-setInterval(()=>{
-time--;
-let m=Math.floor(time/60);
-let s=time%60;
-document.getElementById("timer").innerText=m+":"+ (s<10?"0":"")+s;
-if(time<=0) submit();
-},1000);
-
-function submit(){
-
-let score=0;
-
-questions.forEach((q,i)=>{
-if(answers[i]===q.answer) score++;
-});
-
-let percent=(score/questions.length)*100;
-
-fetch("/save-result",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({email,score,total:questions.length,percent,subject})
-})
-.then(()=>{
-localStorage.setItem("score",score);
-localStorage.setItem("total",questions.length);
-localStorage.setItem("percent",percent);
-window.location="/result.html";
-});
-}
-
-</script>
+<script src="exam.js"></script>
 
 </body>
 </html>

@@ -1,41 +1,78 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-<title>Admin Panel</title>
+<title>Admin Monitor</title>
+
 <style>
-body { font-family: Arial; padding:20px; }
-.box { border:1px solid #ccc; padding:10px; margin-bottom:10px; }
+body { font-family: Arial; background:#0f172a; color:white; margin:0; }
+.header { padding:15px; background:#111827; }
+.card { padding:15px; margin:10px; background:#111827; border-radius:10px; }
 </style>
 </head>
+
 <body>
 
-<h2>CBT Admin Panel</h2>
+<div class="header">
+CBT ADMIN LIVE MONITOR
+</div>
 
-<div id="data"></div>
+<div class="card">
+Users: <span id="users">0</span><br>
+Paid: <span id="paid">0</span><br>
+Active: <span id="active">0</span>
+</div>
+
+<div class="card">
+<h3>Active Students</h3>
+<ul id="activeUsers"></ul>
+</div>
+
+<div class="card">
+<h3>Recent Results</h3>
+<ul id="results"></ul>
+</div>
 
 <script>
 
-fetch("/admin")
-.then(r=>r.json())
-.then(d=>{
+const adminToken = localStorage.getItem("adminToken");
 
-    let html = `
-    <div class="box">
-        <h3>Total Users: ${d.totalUsers}</h3>
-        <h3>Active Exams: ${d.activeSessions.length}</h3>
-    </div>`;
+if(!adminToken){
+alert("Unauthorized");
+window.location="/admin-login.html";
+}
 
-    d.users.forEach(u=>{
-        html += `
-        <div class="box">
-            ${u.email}<br>
-            Paid: ${u.paid}<br>
-            Expires: ${u.expiresAt || "N/A"}
-        </div>`;
-    });
+function load(){
 
-    document.getElementById("data").innerHTML = html;
+fetch("/admin/realtime", {
+headers:{
+"admin-token": adminToken
+}
+})
+.then(r => r.json())
+.then(d => {
+
+document.getElementById("users").innerText = d.totalUsers;
+document.getElementById("paid").innerText = d.paidUsers;
+document.getElementById("active").innerText = d.activeSessions;
+
+let u = "";
+d.activeUsers.forEach(x=>{
+u += `<li>🟢 ${x}</li>`;
 });
+document.getElementById("activeUsers").innerHTML = u;
+
+let r = "";
+d.recentResults.forEach(x=>{
+r += `<li>${x.email} → ${x.subject} → ${x.percent}%</li>`;
+});
+document.getElementById("results").innerHTML = r;
+
+});
+
+}
+
+setInterval(load, 3000);
+load();
 
 </script>
 

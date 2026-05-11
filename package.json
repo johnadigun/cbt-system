@@ -11,5 +11,18 @@
     "dotenv": "^17.4.2",
     "express": "^4.22.1",
     "mongoose": "^5.13.23"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnadigun/cbt-system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/johnadigun/cbt-system/issues"
+  },
+  "homepage": "https://github.com/johnadigun/cbt-system#readme",
+  "description": ""
 }

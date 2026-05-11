@@ -1,0 +1,174 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>CBT Analytics Dashboard</title>
+
+<style>
+body {
+    margin:0;
+    font-family: Arial;
+    background:#0f172a;
+    color:white;
+}
+
+.header {
+    background:#111827;
+    padding:15px;
+    font-size:18px;
+    font-weight:bold;
+}
+
+.container {
+    padding:20px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+}
+
+.card {
+    background:#1f2937;
+    padding:20px;
+    border-radius:10px;
+}
+
+.big {
+    font-size:24px;
+    font-weight:bold;
+}
+
+.good { color:#22c55e; }
+.bad { color:#ef4444; }
+.warn { color:#f59e0b; }
+
+.subject {
+    padding:8px;
+    margin-top:8px;
+    background:#111827;
+    border-radius:6px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+📊 Student Performance Intelligence Dashboard
+</div>
+
+<div class="container">
+
+<!-- SUMMARY -->
+<div class="card">
+<h3>Performance Summary</h3>
+
+<div id="summary">Loading...</div>
+
+</div>
+
+<!-- STUDY PLAN -->
+<div class="card">
+<h3>AI Study Plan</h3>
+
+<div id="plan">Loading...</div>
+
+</div>
+
+</div>
+
+<script>
+
+const email = localStorage.getItem("userEmail");
+
+if(!email){
+    alert("Login required");
+    window.location="/login.html";
+}
+
+// ================= LOAD DATA =================
+fetch(`/student-analytics/${email}`)
+.then(res => res.json())
+.then(data => {
+
+if(data.message){
+    document.getElementById("summary").innerHTML = data.message;
+    return;
+}
+
+// ================= SUMMARY =================
+document.getElementById("summary").innerHTML = `
+
+<p class="big">Average Score: ${data.averageScore}%</p>
+
+<p class="bad">Weakest Subject: ${data.weakest.subject} (${data.weakest.average.toFixed(1)}%)</p>
+
+<p class="good">Strongest Subject: ${data.strongest.subject} (${data.strongest.average.toFixed(1)}%)</p>
+
+`;
+
+// ================= SUBJECT BREAKDOWN =================
+let breakdownHTML = "";
+
+data.breakdown.forEach(s => {
+
+let color = "good";
+
+if(s.average < 50) color = "bad";
+else if(s.average < 70) color = "warn";
+
+breakdownHTML += `
+<div class="subject ${color}">
+<b>${s.subject}</b> — ${s.average.toFixed(1)}%
+</div>
+`;
+
+});
+
+document.getElementById("summary").innerHTML += breakdownHTML;
+
+// ================= AI STUDY PLAN =================
+let weakest = data.weakest.subject;
+let score = data.weakest.average;
+
+let plan = "";
+
+if(score < 50){
+
+plan = `
+⚠️ URGENT IMPROVEMENT PLAN
+
+- Focus heavily on ${weakest}
+- Take 5 daily practice tests
+- Revise basic concepts first
+- Avoid skipping fundamentals
+`;
+
+} else if(score < 70){
+
+plan = `
+📘 IMPROVEMENT PLAN
+
+- Revise ${weakest} daily
+- Take 3 mock tests weekly
+- Focus on past questions
+`;
+
+} else {
+
+plan = `
+📈 MAINTENANCE PLAN
+
+- Keep practicing ${weakest}
+- Take weekly revision tests
+- Strengthen speed & accuracy
+`;
+
+}
+
+document.getElementById("plan").innerText = plan;
+
+});
+
+</script>
+
+</body>
+</html>

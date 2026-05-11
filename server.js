@@ -1,199 +1,129 @@
 ﻿require("dotenv").config();
-
 const express = require("express");
 const mongoose = require("mongoose");
-const bodyParser = require("body-parser");
-const path = require("path");
-const crypto = require("crypto");
+const axios = require("axios");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ================= MIDDLEWARE =================
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
+app.use(express.static("public"));
 
-// ================= SAFETY CHECK =================
-if (!process.env.MONGO_URI) {
-    console.log("❌ MONGO_URI is missing in environment variables");
-}
-
-// ================= DATABASE CONNECTION =================
-mongoose.connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 15000
-})
-.then(() => {
-    console.log("MongoDB Connected Successfully");
-
-    // ================= START SERVER ONLY AFTER DB CONNECT =================
-    app.listen(PORT, () => {
-        console.log("CBT Commercial System running on port " + PORT);
-    });
-
-})
-.catch(err => {
-    console.log("MongoDB Connection Error:", err.message);
-});
+// ================= DATABASE =================
+mongoose.connect(process.env.MONGO_URI)
+.then(()=>console.log("MongoDB Connected"))
+.catch(err=>console.log(err));
 
 // ================= MODELS =================
-const User = mongoose.model("User", new mongoose.Schema({
-    email: String,
-    password: String,
-    paid: Boolean,
-    expiresAt: Date,
-    loginToken: String
-}));
+const User = mongoose.model("User", {
+    name:String,
+    email:String,
+    phone:String,
+    password:String,
+    paid:{type:Boolean,default:false},
+    loginToken:String
+});
 
-const ExamSession = mongoose.model("ExamSession", new mongoose.Schema({
-    email: String,
-    subject: String,
-    sessionId: String,
-    startTime: Date,
-    expiresAt: Date,
-    active: Boolean
-}));
+const Question = mongoose.model("Question", {
+    subject:String,
+    category:String,
+    question:String,
+    options:Array,
+    answer:String
+});
 
-const Result = mongoose.model("Result", new mongoose.Schema({
-    email: String,
-    score: Number,
-    total: Number,
-    percent: Number,
-    subject: String,
-    createdAt: { type: Date, default: Date.now }
-}));
+const Result = mongoose.model("Result", {
+    email:String,
+    score:Number,
+    total:Number,
+    percent:Number,
+    date:{type:Date,default:Date.now}
+});
 
-const Question = mongoose.model("Question", new mongoose.Schema({
-    question: String,
-    options: [String],
-    answer: String,
-    subject: String
-}));
+const ExamSession = mongoose.model("ExamSession", {
+    email:String,
+    active:Boolean,
+    startTime:Date
+});
 
-// ================= HELPERS =================
-function generateSessionId() {
-    return crypto.randomBytes(16).toString("hex");
-}
-
-// ================= START EXAM =================
-app.post("/start-exam", async (req, res) => {
+// ================= REGISTER =================
+app.post("/api/register", async (req,res)=>{
     try {
-
-        const { email, subject, loginToken } = req.body;
-
-        const user = await User.findOne({ email });
-
-        if (!user || user.loginToken !== loginToken)
-            return res.json({ error: "Invalid session" });
-
-        if (!user.paid)
-            return res.json({ error: "Payment required" });
-
-        if (new Date() > user.expiresAt)
-            return res.json({ error: "Access expired" });
-
-        const existing = await ExamSession.findOne({ email, active: true });
-
-        if (existing)
-            return res.json({ error: "Active exam already running" });
-
-        const sessionId = generateSessionId();
-
-        await ExamSession.create({
-            email,
-            subject,
-            sessionId,
-            startTime: new Date(),
-            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-            active: true
-        });
-
-        res.json({ success: true, sessionId });
-
-    } catch (err) {
-        console.log("START EXAM ERROR:", err.message);
-        res.json({ error: "Server error" });
+        const user = await User.create(req.body);
+        res.json({success:true,user});
+    } catch(e){
+        res.json({error:e.message});
     }
 });
 
-// ================= QUESTIONS =================
-app.get("/questions", async (req, res) => {
-    try {
+// ================= LOGIN =================
+app.post("/api/login", async (req,res)=>{
+    const user = await User.findOne({email:req.body.email});
+    if(!user) return res.json({error:"User not found"});
 
-        const { email, subject, sessionId } = req.query;
+    const token = Date.now()+"_"+Math.random();
+    user.loginToken = token;
+    await user.save();
 
-        const session = await ExamSession.findOne({
-            email,
-            sessionId,
-            active: true
-        });
-
-        if (!session)
-            return res.json({ error: "Invalid or expired session" });
-
-        if (new Date() > session.expiresAt) {
-            session.active = false;
-            await session.save();
-            return res.json({ error: "Exam time ended" });
-        }
-
-        const questions = await Question.aggregate([
-            { $match: { subject } },
-            { $sample: { size: 200 } }
-        ]);
-
-        res.json(questions);
-
-    } catch (err) {
-        console.log("QUESTION ERROR:", err.message);
-        res.json({ error: "Server error" });
-    }
+    res.json({success:true,user,token});
 });
 
-// ================= SAVE RESULT =================
-app.post("/save-result", async (req, res) => {
+// ================= PRACTICE QUESTIONS (FREE) =================
+app.get("/api/practice", async (req,res)=>{
+    const {subject} = req.query;
+
+    const q = await Question.aggregate([
+        {$match:{subject}},
+        {$sample:{size:20}}
+    ]);
+
+    res.json(q);
+});
+
+// ================= CBT QUESTIONS (PAID ONLY) =================
+app.get("/api/exam", async (req,res)=>{
+    const {email} = req.query;
+
+    const user = await User.findOne({email});
+
+    if(!user || !user.paid){
+        return res.json({error:"Payment required"});
+    }
+
+    const q = await Question.aggregate([
+        {$sample:{size:60}}
+    ]);
+
+    res.json(q);
+});
+
+// ================= PAYSTACK VERIFY =================
+app.get("/verify", async (req,res)=>{
     try {
+        const ref = req.query.reference;
 
-        const { email, subject } = req.body;
-
-        const existing = await Result.findOne({ email, subject });
-
-        if (existing)
-            return res.json({ error: "Result already submitted" });
-
-        await Result.create(req.body);
-
-        await ExamSession.updateMany(
-            { email, active: true },
-            { active: false }
+        const response = await axios.get(
+            `https://api.paystack.co/transaction/verify/${ref}`,
+            {
+                headers:{
+                    Authorization:`Bearer ${process.env.PAYSTACK_SECRET}`
+                }
+            }
         );
 
-        res.json({ success: true });
+        const email = response.data.data.customer.email;
 
-    } catch (err) {
-        console.log("RESULT ERROR:", err.message);
-        res.json({ error: "Server error" });
+        await User.updateOne(
+            {email},
+            {paid:true}
+        );
+
+        res.redirect("/dashboard.html");
+
+    } catch(e){
+        res.send("Payment failed");
     }
 });
 
-// ================= ADMIN =================
-app.get("/admin", async (req, res) => {
-    try {
-
-        const users = await User.find();
-        const sessions = await ExamSession.find({ active: true });
-        const results = await Result.find();
-
-        res.json({
-            totalUsers: users.length,
-            activeExams: sessions.length,
-            totalResults: results.length,
-            users,
-            sessions,
-            results
-        });
-
-    } catch (err) {
-        console.log("ADMIN ERROR:", err.message);
-        res.json({ error: "Server error" });
-    }
-});
+app.listen(PORT, ()=>console.log("CBT running on "+PORT));

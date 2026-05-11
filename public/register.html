@@ -1,60 +1,41 @@
-﻿<!DOCTYPE html>
-<html>
-<head>
-<title>Register</title>
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
+﻿<form onsubmit="registerUser(); return false;">
 
-<div class="box">
+<input id="surname" placeholder="Surname" required />
+<input id="firstname" placeholder="First Name" required />
+<input id="middlename" placeholder="Middle Name" />
+<input id="phone" placeholder="Phone" required />
+<input id="email" placeholder="Email" required />
+<input id="password" type="password" placeholder="Password" required />
 
-<h2>Register</h2>
+<button type="submit">Register</button>
 
-<input id="firstname" placeholder="First Name"><br><br>
-<input id="middlename" placeholder="Middle Name"><br><br>
-<input id="surname" placeholder="Surname"><br><br>
-<input id="phone" placeholder="Phone"><br><br>
-<input id="email" placeholder="Email"><br><br>
-<input id="password" type="password" placeholder="Password"><br><br>
-
-<button onclick="register()">Register</button>
-
-<p><a href="login.html">Go to Login</a></p>
-
-</div>
+</form>
 
 <script>
+async function registerUser() {
 
-function register() {
     const data = {
-        firstname: firstname.value,
-        middlename: middlename.value,
-        surname: surname.value,
-        phone: phone.value,
-        email: email.value,
-        password: password.value
+        surname: document.getElementById("surname").value,
+        firstname: document.getElementById("firstname").value,
+        middlename: document.getElementById("middlename").value,
+        phone: document.getElementById("phone").value,
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value
     };
 
-    fetch("/register", {
+    const res = await fetch("/api/users/register", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-
-            // ===== CORRECTED FLOW =====
-            alert("Registered successfully");
-            window.location.href = "login.html";
-
-        } else {
-            alert("Error registering user");
-        }
     });
+
+    const result = await res.json();
+
+    if (result.success) {
+        alert("Registration successful");
+        window.location.href = "login.html";
+    } else {
+        alert(result.error);
+    }
 }
-
 </script>
-
-</body>
-</html>

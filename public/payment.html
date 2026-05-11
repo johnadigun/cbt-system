@@ -3,13 +3,14 @@
 <head>
     <title>CBT Payment</title>
 </head>
+
 <body>
 
 <h2>CBT Payment</h2>
 
 <p>Amount: ₦500</p>
 
-<button onclick="pay()">
+<button onclick="pay()" id="btn">
     Pay Now
 </button>
 
@@ -21,61 +22,42 @@
 
 function pay() {
 
-    // ================= USER CHECK =================
+    const btn = document.getElementById("btn");
+    const msg = document.getElementById("msg");
 
-    const email =
-        localStorage.getItem("userEmail");
+    const email = localStorage.getItem("userEmail");
 
-    if (
-        !email ||
-        email === "null" ||
-        email === "undefined"
-    ) {
-
+    if (!email) {
         alert("Login required");
-
         window.location.href = "/login.html";
-
         return;
     }
 
-    // ================= PAYSTACK =================
+    btn.disabled = true;
+    msg.innerText = "Initializing payment...";
 
     let handler = PaystackPop.setup({
 
-        key:
-        "pk_test_98144baa944e535e4736ee9b97b2e6fbb28bcdcc",
+        key: "pk_test_98144baa944e535e4736ee9b97b2e6fbb28bcdcc",
 
         email: email,
 
-        // 🔥 ₦500 = 50000 kobo
         amount: 50000,
 
         currency: "NGN",
 
-        // ================= SUCCESS =================
-
         callback: function(response) {
 
-            document.getElementById("msg")
-            .innerText =
-            "Verifying payment...";
-
-            // 🔥 IMPORTANT:
-            // ONLY verification route used
+            msg.innerText = "Verifying payment...";
 
             window.location.href =
-                "/verify?reference=" +
-                response.reference;
+                "/verify?reference=" + response.reference;
         },
-
-        // ================= CANCEL =================
 
         onClose: function() {
 
-            document.getElementById("msg")
-            .innerText =
-            "Payment cancelled";
+            btn.disabled = false;
+            msg.innerText = "Payment cancelled";
         }
     });
 

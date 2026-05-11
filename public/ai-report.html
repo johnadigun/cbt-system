@@ -1,0 +1,46 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>AI Performance</title>
+
+<style>
+body { font-family: Arial; background:#0f172a; color:white; padding:20px; }
+.card { background:#111827; padding:15px; margin-bottom:10px; border-radius:10px; }
+</style>
+</head>
+
+<body>
+
+<h2>📊 AI WAEC/JAMB Performance Engine</h2>
+
+<div class="card" id="avg">Loading...</div>
+<div class="card" id="weak"></div>
+<div class="card" id="strong"></div>
+<div class="card" id="pred"></div>
+
+<script>
+
+const email = localStorage.getItem("userEmail");
+
+fetch("/ai/predict/" + email)
+.then(r => r.json())
+.then(d => {
+
+document.getElementById("avg").innerHTML =
+"Average: " + d.average;
+
+document.getElementById("weak").innerHTML =
+"Weak Subject: " + d.weak.subject + " (" + d.weak.score + ")";
+
+document.getElementById("strong").innerHTML =
+"Strong Subject: " + d.strong.subject + " (" + d.strong.score + ")";
+
+document.getElementById("pred").innerHTML =
+"Prediction: " + d.prediction;
+
+});
+
+</script>
+
+</body>
+</html>

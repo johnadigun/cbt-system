@@ -32,15 +32,23 @@ border-radius:10px;
 
 <script>
 
-let score=localStorage.getItem("score");
-let total=localStorage.getItem("total");
-let percent=localStorage.getItem("percent");
+// ================= SAFE DATA =================
+let score = parseInt(localStorage.getItem("score")) || 0;
+let total = parseInt(localStorage.getItem("total")) || 0;
+let percent = parseFloat(localStorage.getItem("percent")) || 0;
 
-document.getElementById("score").innerText=score+"/"+total;
-document.getElementById("percent").innerText=percent+"%";
+// ================= DISPLAY =================
+document.getElementById("score").innerText = score + "/" + total;
+document.getElementById("percent").innerText = percent.toFixed(2) + "%";
 
-document.getElementById("status").innerText=
-percent>=50?"PASS":"FAIL";
+// ================= STATUS =================
+let statusText = "FAIL";
+
+if (percent >= 50) {
+    statusText = "PASS";
+}
+
+document.getElementById("status").innerText = statusText;
 
 </script>
 
