@@ -1,129 +1,121 @@
 ﻿require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
-const axios = require("axios");
+const bodyParser = require("body-parser");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // ================= MIDDLEWARE =================
-app.use(express.json());
-app.use(express.static("public"));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(__dirname + "/public"));
+
+// ================= PORT =================
+const PORT = process.env.PORT || 3000;
 
 // ================= DATABASE =================
 mongoose.connect(process.env.MONGO_URI)
-.then(()=>console.log("MongoDB Connected"))
-.catch(err=>console.log(err));
+.then(() => console.log("MongoDB Connected"))
+.catch(err => console.log("DB ERROR:", err.message));
 
-// ================= MODELS =================
-const User = mongoose.model("User", {
-    name:String,
-    email:String,
-    phone:String,
-    password:String,
-    paid:{type:Boolean,default:false},
-    loginToken:String
-});
+// ================= USER MODEL =================
+const User = mongoose.model("User", new mongoose.Schema({
+    surname: String,
+    middlename: String,
+    firstname: String,
+    phone: String,
+    email: String,
+    password: String,
+    paid: { type: Boolean, default: false },
+    loginToken: String,
+    createdAt: { type: Date, default: Date.now }
+}));
 
-const Question = mongoose.model("Question", {
-    subject:String,
-    category:String,
-    question:String,
-    options:Array,
-    answer:String
-});
-
-const Result = mongoose.model("Result", {
-    email:String,
-    score:Number,
-    total:Number,
-    percent:Number,
-    date:{type:Date,default:Date.now}
-});
-
-const ExamSession = mongoose.model("ExamSession", {
-    email:String,
-    active:Boolean,
-    startTime:Date
+// ================= HOME ROUTE =================
+app.get("/", (req, res) => {
+    res.send("CBT System Running...");
 });
 
 // ================= REGISTER =================
-app.post("/api/register", async (req,res)=>{
+app.post("/register", async (req, res) => {
     try {
-        const user = await User.create(req.body);
-        res.json({success:true,user});
-    } catch(e){
-        res.json({error:e.message});
+        const {
+            surname,
+            middlename,
+            firstname,
+            phone,
+            email,
+            password
+        } = req.body;
+
+        const exists = await User.findOne({ email });
+
+        if (exists) {
+            return res.json({
+                success: false,
+                message: "User already exists"
+            });
+        }
+
+        await User.create({
+            surname,
+            middlename,
+            firstname,
+            phone,
+            email,
+            password
+        });
+
+        return res.json({
+            success: true,
+            message: "Registration successful"
+        });
+
+    } catch (err) {
+        console.log(err);
+        return res.json({
+            success: false,
+            message: "Server error"
+        });
     }
 });
 
 // ================= LOGIN =================
-app.post("/api/login", async (req,res)=>{
-    const user = await User.findOne({email:req.body.email});
-    if(!user) return res.json({error:"User not found"});
-
-    const token = Date.now()+"_"+Math.random();
-    user.loginToken = token;
-    await user.save();
-
-    res.json({success:true,user,token});
-});
-
-// ================= PRACTICE QUESTIONS (FREE) =================
-app.get("/api/practice", async (req,res)=>{
-    const {subject} = req.query;
-
-    const q = await Question.aggregate([
-        {$match:{subject}},
-        {$sample:{size:20}}
-    ]);
-
-    res.json(q);
-});
-
-// ================= CBT QUESTIONS (PAID ONLY) =================
-app.get("/api/exam", async (req,res)=>{
-    const {email} = req.query;
-
-    const user = await User.findOne({email});
-
-    if(!user || !user.paid){
-        return res.json({error:"Payment required"});
-    }
-
-    const q = await Question.aggregate([
-        {$sample:{size:60}}
-    ]);
-
-    res.json(q);
-});
-
-// ================= PAYSTACK VERIFY =================
-app.get("/verify", async (req,res)=>{
+app.post("/login", async (req, res) => {
     try {
-        const ref = req.query.reference;
+        const { email, password } = req.body;
 
-        const response = await axios.get(
-            `https://api.paystack.co/transaction/verify/${ref}`,
-            {
-                headers:{
-                    Authorization:`Bearer ${process.env.PAYSTACK_SECRET}`
-                }
-            }
-        );
+        const user = await User.findOne({ email });
 
-        const email = response.data.data.customer.email;
+        if (!user || user.password !== password) {
+            return res.json({
+                success: false,
+                message: "Invalid email or password"
+            });
+        }
 
-        await User.updateOne(
-            {email},
-            {paid:true}
-        );
+        const token = Date.now() + "_" + Math.random();
 
-        res.redirect("/dashboard.html");
+        user.loginToken = token;
+        await user.save();
 
-    } catch(e){
-        res.send("Payment failed");
+        return res.json({
+            success: true,
+            email: user.email,
+            loginToken: token
+        });
+
+    } catch (err) {
+        console.log(err);
+        return res.json({
+            success: false,
+            message: "Server error"
+        });
     }
 });
 
-app.listen(PORT, ()=>console.log("CBT running on "+PORT));
+// ================= SERVER START =================
+app.listen(PORT, () => {
+    console.log("CBT Server running on port " + PORT);
+});
